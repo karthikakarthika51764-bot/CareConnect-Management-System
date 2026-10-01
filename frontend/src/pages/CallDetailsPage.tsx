@@ -1,0 +1,15 @@
+import { useQuery } from '@tanstack/react-query'
+import { ArrowLeft, Clock3, Phone, Sparkles } from 'lucide-react'
+import { Link, useParams } from 'react-router-dom'
+import { apiGet } from '../services/api'
+
+type CallDetail = { call: { id: number; caller_number: string | null; started_at: string; ended_at: string | null; status: string; detected_intent: string | null; language: string | null; summary: string | null }; transcript: Array<{ id: number; speaker: string; text: string; language: string | null; created_at: string }> }
+
+export function CallDetailsPage() {
+  const { id } = useParams()
+  const call = useQuery({ queryKey: ['call', id], queryFn: () => apiGet<CallDetail>(`/api/v1/calls/${id}`) })
+  if (call.isLoading) return <div className="loading-panel">Loading call…</div>
+  if (call.error || !call.data) return <div className="notice error-notice">This call could not be loaded.</div>
+  const record = call.data.call
+  return <div className="workspace-page page-enter"><Link to="/calls" className="back-link"><ArrowLeft size={15} /> Call activity</Link><div className="page-heading call-heading"><div><span className="section-kicker">CALL RECORD #{record.id}</span><h1>{record.caller_number || 'Unknown caller'}</h1><p>{record.detected_intent?.replaceAll('_', ' ').toLowerCase() || 'General enquiry'} · {record.language || 'Language not detected'}</p></div><span className={`status-pill ${record.status.toLowerCase()}`}>{record.status.replace('CALL_', '').toLowerCase()}</span></div><div className="call-detail-grid"><section className="surface call-meta"><span className="section-kicker">CALL DETAILS</span><div><Phone size={16} /><span>Caller</span><strong>{record.caller_number || 'Unknown'}</strong></div><div><Clock3 size={16} /><span>Started</span><strong>{new Date(record.started_at).toLocaleString('en-IN')}</strong></div><div><Sparkles size={16} /><span>Detected intent</span><strong>{record.detected_intent?.replaceAll('_', ' ').toLowerCase() || 'Not detected'}</strong></div>{record.summary && <p className="call-summary">{record.summary}</p>}</section><section className="surface transcript-surface"><div className="surface-heading"><div><span className="section-kicker">CONVERSATION</span><h2>Transcript</h2></div><span className="transcript-count">{call.data.transcript.length} messages</span></div>{call.data.transcript.length ? <div className="transcript-list">{call.data.transcript.map((message) => <div className={`transcript-message ${message.speaker === 'assistant' ? 'transcript-assistant' : ''}`} key={message.id}><div className="transcript-who">{message.speaker === 'assistant' ? 'AI RECEPTIONIST' : 'CALLER'}<time>{new Date(message.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</time></div><p>{message.text}</p></div>)}</div> : <div className="empty-state compact-empty"><span className="empty-illustration"><Phone size={18} /></span><strong>No transcript captured</strong><span>Transcript segments arrive from the configured voice provider.</span></div>}</section></div></div>
+}
